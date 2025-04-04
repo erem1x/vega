@@ -3361,22 +3361,20 @@
   /**
    * Factory for a loader constructor that provides methods for requesting
    * files from either the network or disk, and for sanitizing request URIs.
-   * @param {function} fetch - The Fetch API for HTTP network requests.
-   *   If null or undefined, HTTP loading will be disabled.
    * @param {object} fs - The file system interface for file loading.
    *   If null or undefined, local file loading will be disabled.
    * @return {function} A loader constructor with the following signature:
    *   param {object} [options] - Optional default loading options to use.
    *   return {object} - A new loader instance.
    */
-  function loaderFactory(fetch, fs) {
+  function loaderFactory(fs) {
     return options => ({
       options: options || {},
       sanitize: sanitize,
       load: load$1,
       fileAccess: false,
       file: fileLoader(),
-      http: httpLoader(fetch)
+      http: httpLoader
     });
   }
 
@@ -3393,7 +3391,7 @@
   async function load$1(uri, options) {
     const opt = await this.sanitize(uri, options),
       url = opt.href;
-    return opt.localFile ? this.file(url) : this.http(url, options);
+    return opt.localFile ? this.file(url) : this.http(url, options?.http);
   }
 
   /**
@@ -3492,27 +3490,16 @@
   }
 
   /**
-   * HTTP request handler factory.
-   * @param {function} fetch - The Fetch API method.
-   * @return {function} - An http loader with the following signature:
-   *   param {string} url - The url to request.
-   *   param {object} options - An options hash.
-   *   return {Promise} - A promise that resolves to the file contents.
+   * An http loader.
+   * @param {string} url - The url to request.
+   * @param {Partial<RequestInit>} options - An options hash.
+   * @return {Promise} - A promise that resolves to the file contents.
    */
-  function httpLoader(fetch) {
-    return fetch ? async function (url, options) {
-      const opt = extend$1({}, this.options.http, options),
-        type = options && options.response,
-        response = await fetch(url, opt);
-      return !response.ok ? error(response.status + '' + response.statusText) : isFunction(response[type]) ? response[type]() : response.text();
-    } : httpReject;
-  }
-
-  /**
-   * Default http request handler that simply rejects.
-   */
-  async function httpReject() {
-    error('No HTTP fetch method available.');
+  async function httpLoader(url, options) {
+    const opt = extend$1({}, this.options.http, options),
+      type = options && options.response,
+      response = await fetch(url, opt);
+    return !response.ok ? error(response.status + '' + response.statusText) : isFunction(response[type]) ? response[type]() : response.text();
   }
   const isValid = _ => _ != null && _ === _;
   const isBoolean = _ => _ === 'true' || _ === 'false' || _ === true || _ === false;
@@ -3672,7 +3659,7 @@
       }
     }
   }
-  const loader = loaderFactory(typeof fetch !== 'undefined' && fetch);
+  const loader = loaderFactory();
 
   function UniqueList(idFunc) {
     const $ = idFunc || identity$6,
@@ -7992,6 +7979,45 @@
     }
     return data;
   }
+
+  /**
+   * Collects all data tuples that pass through this operator.
+   * @constructor
+   * @param {object} params - The parameters for this operator.
+   * @param {function(*,*): number} [params.sort] - An optional
+   *   comparator function for additionally sorting the collected tuples.
+   */
+  function Custom(params) {
+    Transform.call(this, [], params);
+  }
+  Custom.Definition = {
+    'type': 'Custom',
+    'metadata': {
+      'source': true
+    },
+    'params': [{
+      'name': 'sort',
+      'type': 'compare'
+    }]
+  };
+  inherits(Custom, Transform, {
+    transform(_, pulse) {
+      const out = pulse.fork(pulse.ALL),
+        list = SortedList(tupleid, this.value, out.materialize(out.ADD).add),
+        sort = _.sort,
+        mod = pulse.changed() || sort && (_.modified('sort') || pulse.modified(sort.fields));
+      out.visit(out.REM, list.remove);
+      this.modified(mod);
+      this.value = out.source = list.data(stableCompare(sort), mod);
+
+      // propagate tree root if defined
+      if (pulse.source && pulse.source.root) {
+        this.value.root = pulse.source.root;
+      }
+      console.log(out);
+      return out;
+    }
+  });
   const Distributions = {
     kde: kde,
     mixture: mixture$1,
@@ -10600,6 +10626,7 @@
     compare: Compare$1,
     countpattern: CountPattern,
     cross: Cross,
+    custom: Custom,
     density: Density,
     dotbin: DotBin,
     expression: Expression$1,
@@ -33052,7 +33079,7 @@
     resolvefilter: ResolveFilter
   });
 
-  var version$1 = "6.1.0";
+  var version$1 = "6.1.2";
 
   const RawCode = 'RawCode';
   const Literal = 'Literal';
@@ -41729,4 +41756,3 @@
   exports.zoomSymlog = zoomSymlog;
 
 }));
-//# sourceMappingURL=vega.js.map

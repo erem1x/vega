@@ -10432,6 +10432,9 @@
           "$ref": "#/definitions/crossTransform"
         },
         {
+          "$ref": "#/definitions/customTransform"
+        },
+        {
           "$ref": "#/definitions/densityTransform"
         },
         {
@@ -10554,6 +10557,9 @@
         },
         {
           "$ref": "#/definitions/collectTransform"
+        },
+        {
+          "$ref": "#/definitions/customTransform"
         },
         {
           "$ref": "#/definitions/dotbinTransform"
@@ -14010,6 +14016,26 @@
             "a",
             "b"
           ]
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "customTransform": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": [
+            "custom"
+          ]
+        },
+        "signal": {
+          "type": "string"
+        },
+        "sort": {
+          "$ref": "#/definitions/compare"
         }
       },
       "required": [

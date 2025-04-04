@@ -4,6 +4,7 @@ export {default as collect} from './src/Collect.js';
 export {default as compare} from './src/Compare.js';
 export {default as countpattern} from './src/CountPattern.js';
 export {default as cross} from './src/Cross.js';
+export {default as custom} from './src/Custom.js';
 export {default as density} from './src/Density.js';
 export {default as dotbin} from './src/DotBin.js';
 export {default as expression} from './src/Expression.js';
