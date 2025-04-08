@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bar Chart Progressive con CI</title>
+    <script src="vega/packages/vega/build/vega.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@6"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/vega-embed@5"></script> -->
+    <script src="progressive-vega-embed/build/vega-embed.min.js"></script>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+      #vis {
+        border: 1px solid #ccc;
+        max-width: 450px; /* Example constraint */
+      }
+    </style>
+  </head>
+  <body>
+  
+    <h1>Bar Chart using Custom Transform</h1>
+    <p>This chart relies on a custom transform that handles some operations.</p>
+  
+    <!-- Container div where the chart will be rendered -->
+    <div id="vis"></div>
+  
+    <script>
+
+      // Function to generate random data
+      const categories = ['A', 'B', 'C', 'D'];
+        let data = [
+                    { "category": "A", "value": 20 },
+                    { "category": "B", "value": 35 },
+                    { "category": "C", "value": 50 },
+                    { "category": "D", "value": 27 }
+        ];
+
+        function updateData() {
+            // Scegli una categoria casuale
+            const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+            
+            // Crea un nuovo valore casuale
+            const newValue = Math.floor(Math.random() * 100);
+
+            // Aggiungi il nuovo dato all'array
+            data.push({ category: randomCategory, value: newValue });
+        }
+
+
+        for(let i=0; i<30; i++){
+            updateData();
+        }
+
+        
+      // --- Vega Specification
+      const spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+        "width": 600,
+        "height": 400,
+        "data": {
+          "name": "progressiveData",
+          "format": { "type": "json" },
+          //PROGRESSION CONTROLS
+          "progress_bar": true,
+          "progress_controls": true,
+          // Dati predefiniti: 4 categorie
+          "values": data,
+          "chunking": {
+              "type": "data",
+              "reading": {
+                  "method": "sequential",
+                  "asc": true,
+                  "size": 1,
+                  "freq": 1000,
+                  "seed": 0
+              }
+          }
+        },
+
+        "transform": [
+            {   "aggregate": [
+                    { "op": "mean", "field": "value", "as": "mean_value" },
+                    { "op": "stdev", "field": "value", "as": "stddev_value" },
+                    { "op": "count", "field": "value", "as": "n" }
+                ],
+                "groupby": ["category"]
+            },
+            {   "calculate": "1.96 * (datum.stddev_value / sqrt(datum.n))", "as": "ci"
+            },
+            {   "calculate": "datum.mean_value - datum.ci / 2", "as": "ci_lower"
+            },
+            {   "calculate": "datum.mean_value + datum.ci / 2", "as": "ci_upper"
+            },
+            ],
+
+        "layer": [
+            {   "mark": "bar",
+                "encoding": {
+                    "y": {"field": "mean_value", "type": "quantitative"},
+                    "x": {"field": "category", "type": "ordinal"},
+                }
+                
+            },
+            {
+                "mark": { type: 'rule', color: 'red', strokeWidth: 2 },
+                "encoding": {
+                    x: { field: 'category', type: 'ordinal' },
+                    y: { field: 'ci_upper', type: 'quantitative' },
+                    y2: { field: 'ci_lower'}
+                }
+            }
+        ]
+      };
+  
+  
+      // --- Vega View Setup ---
+      vegaEmbed("#vis", spec, { actions: false })
+            .then(res => console.log("Visualizzazione 3 caricata", res))
+            .catch(err => console.error("Errore visualizzazione 3:", err));
+  
+    </script>
+  
+  </body>
+  </html>
