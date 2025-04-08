@@ -5836,42 +5836,37 @@
     }
     return data;
   }
-
-  /**
-   * Collects all data tuples that pass through this operator.
-   * @constructor
-   * @param {object} params - The parameters for this operator.
-   * @param {function(*,*): number} [params.sort] - An optional
-   *   comparator function for additionally sorting the collected tuples.
-   */
   function Custom(params) {
-    Transform.call(this, [], params);
+    // Inizializziamo lo stato (null in questo caso)
+    Transform.call(this, null, params);
+    // Assicuriamoci che Vega trovi la funzione di update bindata all'istanza
+    this._update = Custom.prototype.transform.bind(this);
   }
   Custom.Definition = {
-    'type': 'Custom',
-    'metadata': {
-      'source': true
+    type: 'Custom',
+    metadata: {
+      source: true
     },
-    'params': [{
-      'name': 'sort',
-      'type': 'compare'
+    // Definiamo un parametro 'factor' (default a 2) per moltiplicare il valore
+    params: [{
+      name: 'factor',
+      type: 'number',
+      default: 2
     }]
   };
   inherits(Custom, Transform, {
     transform(_, pulse) {
-      const out = pulse.fork(pulse.ALL),
-        list = SortedList(tupleid, this.value, out.materialize(out.ADD).add),
-        sort = _.sort,
-        mod = pulse.changed() || sort && (_.modified('sort') || pulse.modified(sort.fields));
-      out.visit(out.REM, list.remove);
-      this.modified(mod);
-      this.value = out.source = list.data(stableCompare(sort), mod);
+      // Creiamo un fork del pulse per avere tutti i dati
+      const out = pulse.fork(pulse.ALL);
 
-      // propagate tree root if defined
-      if (pulse.source && pulse.source.root) {
-        this.value.root = pulse.source.root;
-      }
-      console.log(out);
+      // Applichiamo la trasformazione: per ogni tuple aggiunta,
+      // calcoliamo customValue = value * factor.
+      out.visit(pulse.ADD, function (t) {
+        t.customValue = t.value * (_.factor || 2);
+      });
+
+      // Assegniamo lo stato (non serve creare una nuova array, basta propagare il pulse)
+      this.value = out.source;
       return out;
     }
   });
@@ -7499,6 +7494,97 @@
       return pulse;
     }
   });
+  function ProgressiveCI(params) {
+    // Stato: per ciascuna categoria accumuliamo count, media e M2 (per la varianza)
+    Transform.call(this, {}, params);
+    this._update = ProgressiveCI.prototype.transform.bind(this);
+    this.state = {}; // struttura: { [categoria]: { count, mean, M2 } }
+  }
+  ProgressiveCI.Definition = {
+    type: 'progressive_ci',
+    metadata: {
+      source: true
+    },
+    params: [{
+      name: 'z',
+      type: 'number',
+      default: 1.96
+    }]
+  };
+  inherits(ProgressiveCI, Transform, {
+    transform(_, pulse) {
+      const z = _.z || 1.96;
+      pulse.visit(pulse.ADD, t => {
+        const cat = t.category;
+        const x = t.value;
+        if (!this.state[cat]) {
+          this.state[cat] = {
+            count: 0,
+            mean: 0,
+            M2: 0
+          };
+        }
+        const acc = this.state[cat];
+        acc.count++;
+        const delta = x - acc.mean;
+        acc.mean += delta / acc.count;
+        const delta2 = x - acc.mean;
+        acc.M2 += delta * delta2;
+        const variance = acc.count > 1 ? acc.M2 / (acc.count - 1) : 0;
+        const se = acc.count > 0 ? Math.sqrt(variance / acc.count) : 0;
+        t.ci_lower = acc.mean - z * se;
+        t.ci_upper = acc.mean + z * se;
+        t.ci_start = t.ci_lower;
+        t.ci_end = t.ci_upper;
+      });
+      pulse.modifies('ci_lower');
+      pulse.modifies('ci_upper');
+      pulse.modifies('ci_start');
+      pulse.modifies('ci_end');
+      return pulse;
+    }
+  });
+  function ProgressiveMean(params) {
+    // Stato: per ciascuna categoria accumuliamo count e media
+    Transform.call(this, {}, params);
+    this._update = ProgressiveMean.prototype.transform.bind(this);
+    this.state = {}; // struttura: { [categoria]: { count, mean } }
+  }
+  ProgressiveMean.Definition = {
+    type: 'progressive_mean',
+    metadata: {
+      source: true
+    },
+    params: []
+  };
+  inherits(ProgressiveMean, Transform, {
+    transform(_, pulse) {
+      pulse.visit(pulse.ADD, t => {
+        const cat = t.category;
+        const x = t.value;
+        if (!this.state[cat]) {
+          // Inizializziamo lo stato per la categoria
+          this.state[cat] = {
+            count: 0,
+            mean: 0
+          };
+        }
+        const acc = this.state[cat];
+        acc.count++;
+        // Calcolo incrementale della media
+        acc.mean += (x - acc.mean) / acc.count;
+        // Assegniamo i nuovi valori al dato
+        t.mean = acc.mean;
+        t.mean_start = acc.mean;
+        t.mean_end = acc.mean;
+      });
+      // Segnala che i campi 'mean', 'mean_start' e 'mean_end' sono stati modificati
+      pulse.modifies('mean');
+      pulse.modifies('mean_start');
+      pulse.modifies('mean_end');
+      return pulse;
+    }
+  });
 
   /**
    * Performs a relational projection, copying selected fields from source
@@ -8506,6 +8592,8 @@
     params: Params$2,
     pivot: Pivot,
     prefacet: PreFacet$1,
+    progressive_ci: ProgressiveCI,
+    progressive_mean: ProgressiveMean,
     project: Project,
     proxy: Proxy$1,
     quantile: Quantile$1,

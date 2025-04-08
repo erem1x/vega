@@ -1,46 +1,35 @@
-import SortedList from './util/SortedList.js';
-import {Transform, stableCompare, tupleid} from 'vega-dataflow';
-import {inherits} from 'vega-util';
+import { Transform } from 'vega-dataflow';
+import { inherits } from 'vega-util';
 
-/**
- * Collects all data tuples that pass through this operator.
- * @constructor
- * @param {object} params - The parameters for this operator.
- * @param {function(*,*): number} [params.sort] - An optional
- *   comparator function for additionally sorting the collected tuples.
- */
 export default function Custom(params) {
-  Transform.call(this, [], params);
+  // Inizializziamo lo stato (null in questo caso)
+  Transform.call(this, null, params);
+  // Assicuriamoci che Vega trovi la funzione di update bindata all'istanza
+  this._update = Custom.prototype.transform.bind(this);
 }
 
 Custom.Definition = {
-  'type': 'Custom',
-  'metadata': {'source': true},
-  'params': [
-    { 'name': 'sort', 'type': 'compare' }
+  type: 'Custom',
+  metadata: { source: true },
+  // Definiamo un parametro 'factor' (default a 2) per moltiplicare il valore
+  params: [
+    { name: 'factor', type: 'number', default: 2 }
   ]
 };
 
 inherits(Custom, Transform, {
   transform(_, pulse) {
-    const out = pulse.fork(pulse.ALL),
-          list = SortedList(tupleid, this.value, out.materialize(out.ADD).add),
-          sort = _.sort,
-          mod = pulse.changed() || (sort &&
-                (_.modified('sort') || pulse.modified(sort.fields)));
+    // Creiamo un fork del pulse per avere tutti i dati
+    const out = pulse.fork(pulse.ALL);
 
-    out.visit(out.REM, list.remove);
+    // Applichiamo la trasformazione: per ogni tuple aggiunta,
+    // calcoliamo customValue = value * factor.
+    out.visit(pulse.ADD, function (t) {
+      t.customValue = t.value * (_.factor || 2);
+    });
 
-    this.modified(mod);
-    this.value = out.source = list.data(stableCompare(sort), mod);
-
-    // propagate tree root if defined
-    if (pulse.source && pulse.source.root) {
-      this.value.root = pulse.source.root;
-    }
-
-    console.log(out);
-
+    // Assegniamo lo stato (non serve creare una nuova array, basta propagare il pulse)
+    this.value = out.source;
     return out;
   }
 });

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Test Progressive Transform</title>
+    <!-- Assicurati di caricare la build modificata di Vega che include le trasformazioni progressive -->
+    <script src="./packages/vega/build/vega.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+
+        #vis {
+            margin: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Test Progressive Mean &amp; CI</h1>
+    <div id="vis"></div>
+    <script>
+        // Spec Vega: si usa la schema v5 perché la build modificata dovrebbe supportarla.
+        const spec = {
+            "$schema": "https://vega.github.io/schema/vega/v5.json",
+            "width": 400,
+            "height": 300,
+            "padding": 5,
+            "data": [
+                {
+                    "name": "table",
+                    // Dati di esempio con ripetizioni per categoria
+                    "values": [
+                        { "category": "A", "value": 20 },
+                        { "category": "A", "value": 22 },
+                        { "category": "B", "value": 35 },
+                        { "category": "B", "value": 37 },
+                        { "category": "C", "value": 50 },
+                        { "category": "C", "value": 48 }
+                    ],
+                    // Applichiamo le trasformazioni progressive
+                    "transform": [
+                        { "type": "progressive_mean" },
+                        { "type": "progressive_ci", "z": 1.96 }
+                    ]
+                }
+            ],
+            "scales": [
+                {
+                    "name": "xscale",
+                    "type": "band",
+                    "domain": { "data": "table", "field": "category" },
+                    "range": "width",
+                    "padding": 0.2
+                },
+                {
+                    "name": "yscale",
+                    // Usiamo il campo 'mean' per il dominio verticale
+                    "domain": { "data": "table", "field": "mean" },
+                    "nice": true,
+                    "range": "height"
+                }
+            ],
+            "axes": [
+                { "orient": "bottom", "scale": "xscale" },
+                { "orient": "left", "scale": "yscale" }
+            ],
+            "marks": [
+                {
+                    "type": "rect",
+                    "from": { "data": "table" },
+                    "encode": {
+                        "enter": {
+                            "x": { "scale": "xscale", "field": "category" },
+                            "width": { "scale": "xscale", "band": 1 },
+                            "y": { "scale": "yscale", "field": "mean" },
+                            "y2": { "scale": "yscale", "value": 0 },
+                            "fill": { "value": "steelblue" }
+                        }
+                    }
+                },
+                {
+                    "type": "rule",
+                    "from": { "data": "table" },
+                    "encode": {
+                        "enter": {
+                            "x": { "scale": "xscale", "field": "category", "offset": 0.5 },
+                            "y": { "scale": "yscale", "field": "ci_lower" },
+                            "y2": { "scale": "yscale", "field": "ci_upper" },
+                            "stroke": { "value": "red" },
+                            "strokeWidth": { "value": 2 }
+                        }
+                    }
+                }
+            ]
+        };
+
+        // Costruiamo e renderizziamo la vista
+        new vega.View(vega.parse(spec))
+            .renderer('canvas')
+            .initialize('#vis')
+            .run();
+    </script>
+</body>
+
+</html>

@@ -27,6 +27,8 @@ export {default as multivalues} from './src/MultiValues.js';
 export {default as params} from './src/Params.js';
 export {default as pivot} from './src/Pivot.js';
 export {default as prefacet} from './src/PreFacet.js';
+export {default as progressive_ci} from './src/progressive_ci.js';
+export {default as progressive_mean} from './src/progressive_mean.js';
 export {default as project} from './src/Project.js';
 export {default as proxy} from './src/Proxy.js';
 export {default as quantile} from './src/Quantile.js';

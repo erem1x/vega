@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Test Custom Transform con Vega</title>
+    <!-- Carica la build modificata di Vega che include la Custom Transform -->
+    <script src="./packages/vega/build/vega.js"></script>
+</head>
+
+<body>
+    <h1>Grafico a barre con Custom Transform</h1>
+    <!-- Qui verrà renderizzato il grafico -->
+    <div id="view"></div>
+
+    <script type="module">
+        // Assicuriamoci di usare la build globale di Vega
+        const vega = window.vega;
+
+        // Specifica del grafico che usa la custom transform
+        const spec = {
+            "$schema": "https://vega.github.io/schema/vega/v5.json",
+            "width": 300,
+            "height": 200,
+            "padding": 5,
+            "data": [
+                {
+                    "name": "table",
+                    "values": [
+                        { "category": "A", "value": 10 },
+                        { "category": "B", "value": 20 },
+                        { "category": "C", "value": 30 }
+                    ],
+                    "transform": [
+                        { "type": "custom", "factor": 10 }
+                    ]
+                }
+            ],
+            "scales": [
+                {
+                    "name": "xscale",
+                    "type": "band",
+                    "domain": { "data": "table", "field": "category" },
+                    "range": "width",
+                    "padding": 0.1
+                },
+                {
+                    "name": "yscale",
+                    "domain": { "data": "table", "field": "customValue" },
+                    "nice": true,
+                    "range": "height"
+                }
+            ],
+            "axes": [
+                { "orient": "bottom", "scale": "xscale" },
+                { "orient": "left", "scale": "yscale" }
+            ],
+            "marks": [
+                {
+                    "type": "rect",
+                    "from": { "data": "table" },
+                    "encode": {
+                        "enter": {
+                            "x": { "scale": "xscale", "field": "category" },
+                            "width": { "scale": "xscale", "band": 1 },
+                            "y": { "scale": "yscale", "field": "customValue" },
+                            "y2": { "scale": "yscale", "value": 0 },
+                            "fill": { "value": "steelblue" }
+                        }
+                    }
+                }
+            ]
+        };
+
+        // Costruiamo il runtime del grafico e lo renderizziamo in #view
+        const runtime = vega.parse(spec);
+        new vega.View(runtime)
+            .renderer('canvas')
+            .initialize('#view')
+            .run();
+    </script>
+</body>
+
+</html>

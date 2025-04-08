@@ -10471,6 +10471,12 @@
           "$ref": "#/definitions/pivotTransform"
         },
         {
+          "$ref": "#/definitions/progressive_ciTransform"
+        },
+        {
+          "$ref": "#/definitions/progressive_meanTransform"
+        },
+        {
           "$ref": "#/definitions/projectTransform"
         },
         {
@@ -10575,6 +10581,12 @@
         },
         {
           "$ref": "#/definitions/lookupTransform"
+        },
+        {
+          "$ref": "#/definitions/progressive_ciTransform"
+        },
+        {
+          "$ref": "#/definitions/progressive_meanTransform"
         },
         {
           "$ref": "#/definitions/sampleTransform"
@@ -14034,8 +14046,16 @@
         "signal": {
           "type": "string"
         },
-        "sort": {
-          "$ref": "#/definitions/compare"
+        "factor": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/signalRef"
+            }
+          ],
+          "default": 2
         }
       },
       "required": [
@@ -15310,6 +15330,51 @@
         "type",
         "field",
         "value"
+      ],
+      "additionalProperties": false
+    },
+    "progressive_ciTransform": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": [
+            "progressive_ci"
+          ]
+        },
+        "signal": {
+          "type": "string"
+        },
+        "z": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/signalRef"
+            }
+          ],
+          "default": 1.96
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "progressive_meanTransform": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": [
+            "progressive_mean"
+          ]
+        },
+        "signal": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
       ],
       "additionalProperties": false
     },
